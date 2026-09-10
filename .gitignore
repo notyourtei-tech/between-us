@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+server/node_modules
+server/.env
+.vercel
+.appdeploy
+playwright-report
+test-results
+work/
