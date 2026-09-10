@@ -151,6 +151,9 @@ begin
   if exists (select 1 from public.love_space_members where user_id = auth.uid()) then
     raise exception '这个账户已经加入了一个共享空间';
   end if;
+  if (select count(*) from public.love_space_members where love_space_id = target_space_id) >= 2 then
+    raise exception '这个共享空间已经有两位成员';
+  end if;
   insert into public.love_space_members (love_space_id, user_id, role)
   values (target_space_id, auth.uid(), 'member');
   return target_space_id;
