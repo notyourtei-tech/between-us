@@ -5,6 +5,7 @@ export type Contributor = 'me' | 'partner'
 export type LoveSpace = {
   id: string
   user_id?: string
+  invite_code?: string
   owner_name: string
   partner_name: string
   relationship_start_date: string
@@ -45,7 +46,9 @@ export type AppData = {
 
 export type DataGateway = {
   isCloud: boolean
-  load: (userId: string) => Promise<AppData>
+  load: (userId: string) => Promise<AppData | null>
+  createSpace: (userId: string) => Promise<AppData>
+  joinSpace: (userId: string, inviteCode: string) => Promise<AppData>
   saveSpace: (userId: string, space: LoveSpace) => Promise<LoveSpace>
   addSavings: (userId: string, entry: SavingsEntry) => Promise<SavingsEntry>
   addMemory: (userId: string, entry: MemoryEntry) => Promise<MemoryEntry>

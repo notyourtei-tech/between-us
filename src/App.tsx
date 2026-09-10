@@ -86,6 +86,25 @@ function App() {
     }
   }, [account])
 
+  useEffect(() => {
+    if (!supabase || !account || !data) return
+    const client = supabase
+    const refreshSharedSpace = () => {
+      void dataGateway.load(account.id)
+        .then((next) => next && setData(next))
+        .catch((error: Error) => setNotice(`同步数据失败：${error.message}`))
+    }
+    const channel = client
+      .channel(`love-space:${data.space.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'love_spaces', filter: `id=eq.${data.space.id}` }, refreshSharedSpace)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'savings_entries', filter: `love_space_id=eq.${data.space.id}` }, refreshSharedSpace)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'memory_entries', filter: `love_space_id=eq.${data.space.id}` }, refreshSharedSpace)
+      .subscribe()
+    return () => {
+      void client.removeChannel(channel)
+    }
+  }, [account, data])
+
   const refreshRates = async () => {
     setRefreshingRates(true)
     try {
@@ -142,6 +161,30 @@ function App() {
     }
   }
 
+  const createSharedSpace = async () => {
+    if (!account) return
+    setLoading(true)
+    try {
+      setData(await dataGateway.createSpace(account.id))
+    } catch (error) {
+      setNotice(`创建空间失败：${(error as Error).message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const joinSharedSpace = async (inviteCode: string) => {
+    if (!account) return
+    setLoading(true)
+    try {
+      setData(await dataGateway.joinSpace(account.id, inviteCode))
+    } catch (error) {
+      setNotice(`加入空间失败：${(error as Error).message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const addSaving = async (input: Omit<SavingsEntry, 'id' | 'love_space_id'>) => {
     if (!account || !data) return
     const entry: SavingsEntry = { ...input, id: crypto.randomUUID(), love_space_id: data.space.id }
@@ -177,7 +220,8 @@ function App() {
 
   if (loading && account === null) return <LoadingScreen />
   if (!account) return <AuthScreen onLogin={setAccount} />
-  if (!data || loading) return <LoadingScreen />
+  if (loading) return <LoadingScreen />
+  if (!data) return <SpaceSetupScreen onCreate={() => void createSharedSpace()} onJoin={(code) => void joinSharedSpace(code)} message={notice} />
 
   return (
     <main className="app-shell">
@@ -267,6 +311,15 @@ function App() {
 
 function LoadingScreen() {
   return <div className="loading-screen"><div className="loading-orbit"><Heart fill="currentColor" /></div><p>正在翻开时光册</p></div>
+}
+
+function SpaceSetupScreen({ onCreate, onJoin, message }: { onCreate: () => void; onJoin: (inviteCode: string) => void; message: string }) {
+  const [inviteCode, setInviteCode] = useState('')
+  return <main className="auth-page setup-page">
+    <div className="auth-constellation a" /><div className="auth-constellation b" />
+    <section className="auth-story"><div className="auth-logo"><span><Heart fill="currentColor" size={18} /></span> BETWEEN US</div><p className="eyebrow">ONE SPACE, TWO HEARTS</p><h1>从此以后，<br /><em>同步想念。</em></h1><p className="auth-lede">建立一个空间后，把邀请码交给 TA。你们会看见同一份倒数、基金和时光册。</p></section>
+    <section className="auth-card-wrap"><div className="auth-card setup-card"><p className="eyebrow">CHOOSE YOUR WAY IN</p><h2>一起住进来。</h2><p className="auth-sub">第一次使用？建立一个只属于你们的空间；TA 已经创建？输入邀请码加入。</p><button className="primary-button" onClick={onCreate}>创建我们的空间 <ArrowUpRight size={17} /></button><div className="join-divider"><span>或</span></div><form onSubmit={(event) => { event.preventDefault(); onJoin(inviteCode) }}><label>TA 的邀请码<input value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase())} placeholder="例如：US-8K4M2P" required autoCapitalize="characters" /></label><button className="quiet-button join-button" type="submit">加入 TA 的空间 <ChevronRight size={16} /></button></form>{message && <p className="form-message">{message}</p>}<p className="demo-auth-note">加入后，双方都能编辑同一份内容；账目与时光册仅追加，不能在网站内删除。</p></div></section>
+  </main>
 }
 
 function AuthScreen({ onLogin }: { onLogin: (account: Account) => void }) {
@@ -452,7 +505,7 @@ function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) { r
 
 function SettingsPanel({ space, onClose, onSave }: { space: LoveSpace; onClose: () => void; onSave: (space: LoveSpace) => void }) {
   const [draft, setDraft] = useState(space)
-  return <div className="overlay" role="dialog" aria-modal="true" aria-label="编辑时间线"><section className="sheet settings-sheet"><header><div><p className="eyebrow">MAKE IT YOURS</p><h2>编辑你们的时间线</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭"><X size={19} /></button></header><form onSubmit={(e) => { e.preventDefault(); onSave({ ...draft, savings_target: Number(draft.savings_target) || 0 }) }}><div className="form-grid"><label>你的名字<input value={draft.owner_name} onChange={(e) => setDraft({ ...draft, owner_name: e.target.value })} required /></label><label>TA 的名字<input value={draft.partner_name} onChange={(e) => setDraft({ ...draft, partner_name: e.target.value })} required /></label></div><div className="date-fields"><label>相识的日子<input type="date" value={draft.relationship_start_date} onChange={(e) => setDraft({ ...draft, relationship_start_date: e.target.value })} required /></label><label>第一次见面<input type="date" value={draft.first_meeting_date} onChange={(e) => setDraft({ ...draft, first_meeting_date: e.target.value })} required /></label><label>上一次见面<input type="date" value={draft.last_meeting_date} onChange={(e) => setDraft({ ...draft, last_meeting_date: e.target.value })} required /></label><label>下一次见面<input type="date" value={draft.next_meeting_date} onChange={(e) => setDraft({ ...draft, next_meeting_date: e.target.value })} required /></label></div><label>见面基金目标（元）<input type="number" min="0" value={draft.savings_target} onChange={(e) => setDraft({ ...draft, savings_target: Number(e.target.value) })} /></label><button className="primary-button" type="submit">保存这段时间 <Check size={17} /></button></form></section></div>
+  return <div className="overlay" role="dialog" aria-modal="true" aria-label="编辑时间线"><section className="sheet settings-sheet"><header><div><p className="eyebrow">MAKE IT YOURS</p><h2>编辑你们的时间线</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭"><X size={19} /></button></header>{space.invite_code && <div className="invite-card"><span>把这个邀请码交给 TA</span><strong>{space.invite_code}</strong><small>TA 注册登录后输入邀请码，即可一起查看和编辑。</small></div>}<form onSubmit={(e) => { e.preventDefault(); onSave({ ...draft, savings_target: Number(draft.savings_target) || 0 }) }}><div className="form-grid"><label>你的名字<input value={draft.owner_name} onChange={(e) => setDraft({ ...draft, owner_name: e.target.value })} required /></label><label>TA 的名字<input value={draft.partner_name} onChange={(e) => setDraft({ ...draft, partner_name: e.target.value })} required /></label></div><div className="date-fields"><label>相识的日子<input type="date" value={draft.relationship_start_date} onChange={(e) => setDraft({ ...draft, relationship_start_date: e.target.value })} required /></label><label>第一次见面<input type="date" value={draft.first_meeting_date} onChange={(e) => setDraft({ ...draft, first_meeting_date: e.target.value })} required /></label><label>上一次见面<input type="date" value={draft.last_meeting_date} onChange={(e) => setDraft({ ...draft, last_meeting_date: e.target.value })} required /></label><label>下一次见面<input type="date" value={draft.next_meeting_date} onChange={(e) => setDraft({ ...draft, next_meeting_date: e.target.value })} required /></label></div><label>见面基金目标（元）<input type="number" min="0" value={draft.savings_target} onChange={(e) => setDraft({ ...draft, savings_target: Number(e.target.value) })} /></label><button className="primary-button" type="submit">保存这段时间 <Check size={17} /></button></form></section></div>
 }
 
 function SavingPanel({ onClose, onSave }: { onClose: () => void; onSave: (entry: Omit<SavingsEntry, 'id' | 'love_space_id'>) => void }) {

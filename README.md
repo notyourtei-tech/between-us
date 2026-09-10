@@ -5,7 +5,8 @@
 ## 已实现
 
 - 邮箱注册 / 登录（Supabase Auth 免费额度）
-- 每位用户独立的数据空间与 PostgreSQL 行级安全策略
+- 双人共享空间：一方创建邀请码、另一方加入；双方看到同一份内容并都能编辑
+- PostgreSQL 行级安全策略：只有这对情侣的两个已登录账户能读写自己的空间
 - 下一次见面倒计时、上次到下次的时间进度、相识和初见天数
 - 基础倒数、相识/在一起天数、初见过去天数、相见进度与百日里程碑
 - 见面基金支持日元（JPY）、白俄罗斯卢布（BYN）、人民币（CNY）；实时折合、双方累计和共同累计
@@ -24,7 +25,7 @@ npm run dev
 ## 接入免费登录与永不丢失的记录
 
 1. 在 [Supabase](https://supabase.com/) 新建一个免费项目。
-2. 在 SQL Editor 粘贴并运行 [`supabase/schema.sql`](supabase/schema.sql)。
+2. 在 SQL Editor 粘贴并运行 [`supabase/schema.sql`](supabase/schema.sql)。它会创建双人共享空间、邀请码与实时同步权限。
 3. 在 Authentication → Providers 确认 Email 已开启；正式上线前可在 URL Configuration 填入 Vercel 域名。
 4. 将 Project Settings → API 中的 Project URL 与 anon key 填入 `.env.local`：
 
