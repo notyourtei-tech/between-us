@@ -23,7 +23,7 @@ create table if not exists public.savings_entries (
   love_space_id uuid not null references public.love_spaces(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   amount numeric(12,2) not null check (amount > 0),
-  currency_code text not null default 'CNY' check (currency_code in ('CNY', 'JPY', 'BYN')),
+  currency_code text not null default 'CNY' check (currency_code in ('CNY', 'JPY', 'USD', 'BYN')),
   contributor text not null default 'me' check (contributor in ('me', 'partner')),
   note text not null default '' check (char_length(note) <= 160),
   occurred_on date not null default current_date,
@@ -43,9 +43,12 @@ create table if not exists public.memory_entries (
 
 -- Safe migration for projects that ran an earlier version of this schema.
 alter table public.savings_entries add column if not exists currency_code text not null default 'CNY'
-  check (currency_code in ('CNY', 'JPY', 'BYN'));
+  check (currency_code in ('CNY', 'JPY', 'USD', 'BYN'));
 alter table public.savings_entries add column if not exists contributor text not null default 'me'
   check (contributor in ('me', 'partner'));
+alter table public.savings_entries drop constraint if exists savings_entries_currency_code_check;
+alter table public.savings_entries add constraint savings_entries_currency_code_check
+  check (currency_code in ('CNY', 'JPY', 'USD', 'BYN'));
 
 alter table public.love_spaces enable row level security;
 alter table public.savings_entries enable row level security;

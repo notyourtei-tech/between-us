@@ -8,7 +8,7 @@ export type FxRates = {
 
 const CACHE_KEY = 'between-us:exchange-rates:v1'
 const FALLBACK: FxRates = {
-  rates: { CNY: 1, JPY: 22.846816, BYN: 0.455532 },
+  rates: { CNY: 1, JPY: 22.846816, USD: 0.139, BYN: 0.455532 },
   updatedAt: '暂未连接',
   isLive: false,
 }
@@ -16,7 +16,7 @@ const FALLBACK: FxRates = {
 const isFxRates = (value: unknown): value is FxRates => {
   if (!value || typeof value !== 'object') return false
   const maybe = value as FxRates
-  return Boolean(maybe.rates?.CNY && maybe.rates?.JPY && maybe.rates?.BYN)
+  return Boolean(maybe.rates?.CNY && maybe.rates?.JPY && maybe.rates?.USD && maybe.rates?.BYN)
 }
 
 export const readCachedRates = (): FxRates => {
@@ -33,10 +33,11 @@ export const fetchRates = async (): Promise<FxRates> => {
   if (!response.ok) throw new Error(`汇率服务返回 ${response.status}`)
   const body = await response.json() as { result?: string; rates?: Record<string, number>; time_last_update_utc?: string }
   const jpy = body.rates?.JPY
+  const usd = body.rates?.USD
   const byn = body.rates?.BYN
-  if (body.result !== 'success' || !jpy || !byn) throw new Error('汇率服务暂时不可用')
+  if (body.result !== 'success' || !jpy || !usd || !byn) throw new Error('汇率服务暂时不可用')
   const result: FxRates = {
-    rates: { CNY: 1, JPY: jpy, BYN: byn },
+    rates: { CNY: 1, JPY: jpy, USD: usd, BYN: byn },
     updatedAt: body.time_last_update_utc || new Date().toISOString(),
     isLive: true,
   }

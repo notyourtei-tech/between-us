@@ -461,12 +461,12 @@ function WalletView({ data, fx, refreshingRates, onRefreshRates, onAdd }: { data
     result[item.contributor] += inCny
     result.currencies[item.currency_code] += Number(item.amount)
     return result
-  }, { me: 0, partner: 0, together: 0, currencies: { CNY: 0, JPY: 0, BYN: 0 } } as { me: number; partner: number; together: number; currencies: Record<CurrencyCode, number> }), [data.savings, fx])
+  }, { me: 0, partner: 0, together: 0, currencies: { CNY: 0, JPY: 0, USD: 0, BYN: 0 } } as { me: number; partner: number; together: number; currencies: Record<CurrencyCode, number> }), [data.savings, fx])
   const target = data.space.savings_target
   const progress = Math.min(100, Math.round((totals.together / Math.max(target, 1)) * 100))
   const remaining = Math.max(0, target - totals.together)
   const thisMonth = sorted.filter((x) => x.occurred_on.slice(0, 7) === isoToday().slice(0, 7)).reduce((sum, x) => sum + toCny(Number(x.amount), x.currency_code, fx), 0)
-  const currencyName: Record<CurrencyCode, string> = { CNY: '人民币', JPY: '日元', BYN: '白俄罗斯卢布' }
+  const currencyName: Record<CurrencyCode, string> = { CNY: '人民币', JPY: '日元', USD: '美元', BYN: '白俄罗斯卢布' }
 
   return <div className="page wallet-page">
     <section className="intro-row"><div><p className="eyebrow">FOR THE NEXT HUG</p><h1>见面基金</h1><p className="page-subtitle">各自存下的每一笔，都会在同一个目的地相遇。</p></div><button className="primary-button compact" onClick={onAdd}><Plus size={17} /> 记录一笔</button></section>
@@ -476,14 +476,14 @@ function WalletView({ data, fx, refreshingRates, onRefreshRates, onAdd }: { data
       <div className="wallet-emblem"><span>♡</span><small>SAVE<br />TO MEET</small></div>
     </section>
     <section className="contributor-cards" aria-label="双方见面基金累计">
-      <article className="contributor-card mine"><span className="person-monogram">我</span><div><p>我的累计</p><strong>{formatCurrency(totals.me, 'CNY')}</strong><small>存入日元 / 人民币的实时折合</small></div></article>
-      <article className="contributor-card partner"><span className="person-monogram">TA</span><div><p>{data.space.partner_name}的累计</p><strong>{formatCurrency(totals.partner, 'CNY')}</strong><small>存入白俄罗斯卢布 / 人民币的实时折合</small></div></article>
+      <article className="contributor-card mine"><span className="person-monogram">我</span><div><p>我的累计</p><strong>{formatCurrency(totals.me, 'CNY')}</strong><small>日元 / 美元 / 人民币 / 白俄罗斯卢布均可存入</small></div></article>
+      <article className="contributor-card partner"><span className="person-monogram">TA</span><div><p>{data.space.partner_name}的累计</p><strong>{formatCurrency(totals.partner, 'CNY')}</strong><small>双方按每笔实际选择的币种累计</small></div></article>
       <article className="contributor-card together"><span className="person-monogram">♡</span><div><p>我们的共同累计</p><strong>{formatCurrency(totals.together, 'CNY')}</strong><small>相见的距离，正在缩短</small></div></article>
     </section>
     <section className="fx-panel" aria-label="实时汇率换算">
       <div className="fx-panel-title"><div><p className="eyebrow">LIVE EXCHANGE DESK</p><h2>实时汇率换算</h2></div><button className="rate-refresh" onClick={onRefreshRates} disabled={refreshingRates}>{refreshingRates ? '更新中…' : '更新汇率'} <ArrowUpRight size={14} /></button></div>
-      <div className="fx-rates"><div><span>1 CNY</span><strong>= {fx.rates.JPY.toFixed(2)} JPY</strong><small>日元</small></div><div><span>1 CNY</span><strong>= {fx.rates.BYN.toFixed(4)} BYN</strong><small>白俄罗斯卢布</small></div><div className="fx-updated"><Cloud size={16} /><span>{fx.isLive ? `更新于 ${fx.updatedAt.replace(' +0000', ' UTC')}` : '显示离线备用汇率'}</span></div></div>
-      <div className="currency-breakdown">{(['JPY', 'BYN', 'CNY'] as CurrencyCode[]).map((currency) => { const cnyValue = toCny(totals.currencies[currency], currency, fx); const secondCurrency: CurrencyCode = currency === 'JPY' ? 'BYN' : 'JPY'; return <div key={currency}><span>{currencyName[currency]}已存</span><strong>{formatCurrency(totals.currencies[currency], currency)}</strong><small>≈ {formatCurrency(cnyValue, 'CNY')} · {formatCurrency(fromCny(cnyValue, secondCurrency, fx), secondCurrency)}</small></div> })}</div>
+      <div className="fx-rates"><div><span>1 CNY</span><strong>= {fx.rates.JPY.toFixed(2)} JPY</strong><small>日元</small></div><div><span>1 CNY</span><strong>= {fx.rates.USD.toFixed(4)} USD</strong><small>美元</small></div><div><span>1 CNY</span><strong>= {fx.rates.BYN.toFixed(4)} BYN</strong><small>白俄罗斯卢布</small></div><div className="fx-updated"><Cloud size={16} /><span>{fx.isLive ? `更新于 ${fx.updatedAt.replace(' +0000', ' UTC')}` : '显示离线备用汇率'}</span></div></div>
+      <div className="currency-breakdown">{(['JPY', 'USD', 'BYN', 'CNY'] as CurrencyCode[]).map((currency) => { const cnyValue = toCny(totals.currencies[currency], currency, fx); const secondCurrency: CurrencyCode = currency === 'JPY' ? 'BYN' : 'JPY'; return <div key={currency}><span>{currencyName[currency]}已存</span><strong>{formatCurrency(totals.currencies[currency], currency)}</strong><small>≈ {formatCurrency(cnyValue, 'CNY')} · {formatCurrency(fromCny(cnyValue, secondCurrency, fx), secondCurrency)}</small></div> })}</div>
       <p className="fx-attribution">汇率由 ExchangeRate-API 提供，每日更新；仅作见面基金估算，实际兑换以银行/平台为准。</p>
     </section>
     <section className="wallet-insights"><article><CircleDollarSign size={20} /><div><span>本月已存（折合）</span><strong>{formatCurrency(thisMonth, 'CNY')}</strong></div></article><article><Leaf size={20} /><div><span>下一步的小目标</span><strong>{formatCurrency(Math.min(remaining, 500), 'CNY')}</strong></div></article><article><Clock3 size={20} /><div><span>距离见面</span><strong>{daysUntil(data.space.next_meeting_date)} 天</strong></div></article></section>
@@ -512,10 +512,10 @@ function SavingPanel({ onClose, onSave }: { onClose: () => void; onSave: (entry:
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [date, setDate] = useState(isoToday())
-  const [currency, setCurrency] = useState<CurrencyCode>('JPY')
+  const [currency, setCurrency] = useState<CurrencyCode>('CNY')
   const [contributor, setContributor] = useState<Contributor>('me')
-  const unit: Record<CurrencyCode, string> = { CNY: 'CNY / 人民币', JPY: 'JPY / 日元', BYN: 'BYN / 白俄罗斯卢布' }
-  return <div className="overlay" role="dialog" aria-modal="true" aria-label="记录见面基金"><section className="sheet small-sheet"><header><div><p className="eyebrow">ONE STEP CLOSER</p><h2>存下一点相见</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭"><X size={19} /></button></header><form onSubmit={(e) => { e.preventDefault(); onSave({ amount: Number(amount), currency_code: currency, contributor, note, occurred_on: date }) }}><div className="form-grid"><label>这笔是谁存的<select value={contributor} onChange={(e) => setContributor(e.target.value as Contributor)}><option value="me">我存的</option><option value="partner">TA 存的</option></select></label><label>存入币种<select value={currency} onChange={(e) => setCurrency(e.target.value as CurrencyCode)}>{(['JPY', 'BYN', 'CNY'] as CurrencyCode[]).map((code) => <option value={code} key={code}>{unit[code]}</option>)}</select></label></div><label>金额（{unit[currency]}）<input className="amount-input" type="number" min="0.01" step="0.01" autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" required /></label><label>这一笔来自<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="例如：本周的零花钱" /></label><label>日期<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label><p className="append-only-note"><Check size={13} /> 保存后会成为不可删除的共同记录。</p><button className="primary-button" type="submit">放进见面基金 <ArrowDownLeft size={17} /></button></form></section></div>
+  const unit: Record<CurrencyCode, string> = { CNY: 'CNY / 人民币', JPY: 'JPY / 日元', USD: 'USD / 美元', BYN: 'BYN / 白俄罗斯卢布' }
+  return <div className="overlay" role="dialog" aria-modal="true" aria-label="记录见面基金"><section className="sheet small-sheet"><header><div><p className="eyebrow">ONE STEP CLOSER</p><h2>存下一点相见</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭"><X size={19} /></button></header><form onSubmit={(e) => { e.preventDefault(); onSave({ amount: Number(amount), currency_code: currency, contributor, note, occurred_on: date }) }}><div className="form-grid"><label>这笔是谁存的<select value={contributor} onChange={(e) => setContributor(e.target.value as Contributor)}><option value="me">我存的</option><option value="partner">TA 存的</option></select></label><label>存入币种<select value={currency} onChange={(e) => setCurrency(e.target.value as CurrencyCode)}>{(['CNY', 'JPY', 'USD', 'BYN'] as CurrencyCode[]).map((code) => <option value={code} key={code}>{unit[code]}</option>)}</select></label></div><p className="append-only-note"><Check size={13} /> 不区分谁固定使用哪种货币；双方每一笔都可任选四种币种。</p><label>金额（{unit[currency]}）<input className="amount-input" type="number" min="0.01" step="0.01" autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" required /></label><label>这一笔来自<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="例如：本周的零花钱" /></label><label>日期<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label><p className="append-only-note"><Check size={13} /> 保存后会成为不可删除的共同记录。</p><button className="primary-button" type="submit">放进见面基金 <ArrowDownLeft size={17} /></button></form></section></div>
 }
 
 function MemoryPanel({ onClose, onSave }: { onClose: () => void; onSave: (entry: Omit<MemoryEntry, 'id' | 'love_space_id'>) => void }) {

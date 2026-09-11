@@ -1,5 +1,5 @@
 export type View = 'home' | 'wallet' | 'memory'
-export type CurrencyCode = 'CNY' | 'JPY' | 'BYN'
+export type CurrencyCode = 'CNY' | 'JPY' | 'USD' | 'BYN'
 export type Contributor = 'me' | 'partner'
 
 export type LoveSpace = {
