@@ -56,17 +56,33 @@ const cloudGateway: DataGateway = {
   createSpace: async (userId) => {
     if (!supabase) return createDemoData(userId)
     const fallback = createEmptySpace(userId)
-    const { data: created, error: createError } = await supabase
-      .from('love_spaces')
-      .insert({ ...fallback, user_id: userId })
-      .select()
-      .single()
-    if (createError) throw createError
-    const { error: memberError } = await supabase
-      .from('love_space_members')
-      .insert({ love_space_id: created.id, user_id: userId, role: 'owner' })
-    if (memberError) throw memberError
-    return { space: created as LoveSpace, savings: [], memories: [] }
+    const { error: rpcError } = await supabase.rpc('create_love_space', {
+      p_owner_name: fallback.owner_name,
+      p_partner_name: fallback.partner_name,
+      p_relationship_start_date: fallback.relationship_start_date,
+      p_first_meeting_date: fallback.first_meeting_date,
+      p_last_meeting_date: fallback.last_meeting_date,
+      p_next_meeting_date: fallback.next_meeting_date,
+      p_savings_target: fallback.savings_target,
+    })
+    // Existing installations can be one migration behind. Fall back safely to
+    // the already-supported two-step creation if this RPC is not present yet.
+    if (rpcError && rpcError.code !== 'PGRST202') throw rpcError
+    if (rpcError) {
+      // Do not append `.select()` here: a new space cannot be selected until
+      // its owner membership exists, by design of the RLS policy.
+      const { error: createError } = await supabase
+        .from('love_spaces')
+        .insert({ ...fallback, user_id: userId })
+      if (createError) throw createError
+      const { error: memberError } = await supabase
+        .from('love_space_members')
+        .insert({ love_space_id: fallback.id, user_id: userId, role: 'owner' })
+      if (memberError) throw memberError
+    }
+    const data = await loadSharedSpace(userId)
+    if (!data) throw new Error('空间已创建，但暂时无法读取；请刷新页面后重试。')
+    return data
   },
   joinSpace: async (userId, inviteCode) => {
     if (!supabase) return localGateway.joinSpace(userId, inviteCode)

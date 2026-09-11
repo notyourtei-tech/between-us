@@ -130,6 +130,57 @@ as $$
   );
 $$;
 
+-- This is intentionally atomic: an owner must receive their membership before
+-- the shared-space SELECT policy can expose the new row back to the browser.
+-- It also repairs an interrupted older creation that inserted the space first.
+create or replace function public.create_love_space(
+  p_owner_name text,
+  p_partner_name text,
+  p_relationship_start_date date,
+  p_first_meeting_date date,
+  p_last_meeting_date date,
+  p_next_meeting_date date,
+  p_savings_target numeric
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_space_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception '请先登录后再创建共享空间';
+  end if;
+
+  select love_space_id into target_space_id
+  from public.love_space_members
+  where user_id = auth.uid();
+  if target_space_id is not null then
+    return target_space_id;
+  end if;
+
+  select id into target_space_id
+  from public.love_spaces
+  where user_id = auth.uid();
+  if target_space_id is null then
+    insert into public.love_spaces (
+      user_id, owner_name, partner_name, relationship_start_date,
+      first_meeting_date, last_meeting_date, next_meeting_date, savings_target
+    ) values (
+      auth.uid(), p_owner_name, p_partner_name, p_relationship_start_date,
+      p_first_meeting_date, p_last_meeting_date, p_next_meeting_date, p_savings_target
+    ) returning id into target_space_id;
+  end if;
+
+  insert into public.love_space_members (love_space_id, user_id, role)
+  values (target_space_id, auth.uid(), 'owner')
+  on conflict (love_space_id, user_id) do nothing;
+  return target_space_id;
+end;
+$$;
+
 create or replace function public.join_love_space(code text)
 returns uuid
 language plpgsql
@@ -162,9 +213,11 @@ $$;
 
 revoke all on function public.is_love_space_member(uuid) from public;
 revoke all on function public.is_love_space_owner(uuid) from public;
+revoke all on function public.create_love_space(text, text, date, date, date, date, numeric) from public;
 revoke all on function public.join_love_space(text) from public;
 grant execute on function public.is_love_space_member(uuid) to authenticated;
 grant execute on function public.is_love_space_owner(uuid) to authenticated;
+grant execute on function public.create_love_space(text, text, date, date, date, date, numeric) to authenticated;
 grant execute on function public.join_love_space(text) to authenticated;
 
 drop policy if exists "read own love space" on public.love_spaces;
